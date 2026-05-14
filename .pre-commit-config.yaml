@@ -1,0 +1,80 @@
+repos:
+  # ── uv lockfile ───────────────────────────────
+  - repo: local
+    hooks:
+      - id: uv-lock
+        name: uv-lock
+        entry: bash -c 'cd backend && uv lock --check'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+
+  # ── Ruff (lint + format) ──────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.13
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # ── Mypy type checking ────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        files: ^backend/src/
+        additional_dependencies: [types-requests, pydantic, pydantic-settings]
+
+  # ── Bandit security linter ────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        files: ^backend/src/
+        args:
+          - -x
+          - backend/tests
+
+  # ── pip-audit dependency audit ────────────────
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit
+        entry: bash -c 'cd backend && uv run pip-audit'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+
+  # ── General file hygiene ──────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # ── pytest (fast, on-commit) ──────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd backend && uv run pytest tests/ -x -q'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # ── pytest with coverage (manual only) ───────
+  - repo: local
+    hooks:
+      - id: pytest-coverage
+        name: pytest with coverage
+        entry: bash -c 'cd backend && uv run pytest --cov=src --cov-report=term-missing'
+        language: system
+        pass_filenames: false
+        verbose: true
+        stages: [manual]

@@ -1,0 +1,43 @@
+name: Docker Compose Smoke Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  compose-up:
+    name: docker compose up
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy env file
+        run: cp .env.example .env
+
+      - name: Build and start services
+        run: docker compose up --build -d
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          echo "Backend did not become healthy"
+          docker compose logs backend
+          exit 1
+
+      - name: Check frontend is up
+        run: curl -sf http://localhost:3000 || (docker compose logs frontend && exit 1)
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
