@@ -28,16 +28,26 @@ jobs:
               echo "Backend is healthy"
               exit 0
             fi
-            echo "Waiting... ($i/30)"
+            echo "Waiting for backend... ($i/30)"
             sleep 2
           done
           echo "Backend did not become healthy"
           docker compose logs backend
           exit 1
-      - name: Wait for services to be healthy
-        run: docker compose ps --wait
+
       - name: Check frontend is up
-        run: curl -sf http://localhost:3000 || (docker compose logs frontend && exit 1)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000; then
+              echo "Frontend is healthy and responding!"
+              exit 0
+            fi
+            echo "Waiting for frontend Node server to boot... ($i/30)"
+            sleep 2
+          done
+          echo "Frontend did not become healthy in time"
+          docker compose logs frontend
+          exit 1
 
       - name: Tear down
         if: always()
