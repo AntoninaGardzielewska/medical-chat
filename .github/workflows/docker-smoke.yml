@@ -34,7 +34,8 @@ jobs:
           echo "Backend did not become healthy"
           docker compose logs backend
           exit 1
-
+      - name: Wait for services to be healthy
+        run: docker compose ps --wait
       - name: Check frontend is up
         run: curl -sf http://localhost:3000 || (docker compose logs frontend && exit 1)
 
