@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from ingestion.fetch import FetchArticles
+
 
 class TestSearchIds:
     xml_text = """
@@ -24,16 +25,13 @@ class TestSearchIds:
         </PubmedArticle>
         </PubmedArticleSet>
     """
+
     def test_returns_list_of_ids(self):
         fetcher = FetchArticles(["diabetes"], 10, "./test_output.json")
 
         with patch("httpx.get") as mock_get:
             mock_get.return_value = MagicMock(
-                json=lambda: {
-                    "esearchresult": {
-                        "idlist": ["11111", "22222", "33333"]
-                    }
-                }
+                json=lambda: {"esearchresult": {"idlist": ["11111", "22222", "33333"]}}
             )
 
             result = fetcher.search_for_ids("diabetes", 10)
@@ -41,29 +39,29 @@ class TestSearchIds:
 
     def test_fetch_ids_returns_list_of_dicts(self):
         fetcher = FetchArticles(["diabetes"], 10, "./test_output.json")
-        
+
         with patch("httpx.post") as mock_post:
-            mock_post.return_value = MagicMock(
-                text = self.xml_text
-            )
+            mock_post.return_value = MagicMock(text=self.xml_text)
             result = fetcher.fetch_by_ids(["11111"])
-            assert result == [{
-                "pmid": "11111",
-                "year": "2023",
-                "authors": [{"first_name": "John", "last_name": "Smith"}],
-                "journal": "The Lancet",
-                "article_title": "Effects of glucose on diabetes",
-                "article_text": "This study shows...",
-            }]
+            assert result == [
+                {
+                    "pmid": "11111",
+                    "year": "2023",
+                    "authors": [{"first_name": "John", "last_name": "Smith"}],
+                    "journal": "The Lancet",
+                    "article_title": "Effects of glucose on diabetes",
+                    "article_text": "This study shows...",
+                }
+            ]
 
     def test_get_articles_deduplicates(self):
         fetcher = FetchArticles(["diabetes", "hypertension"], 10, "./test_output.json")
 
-        with patch("httpx.get") as mock_get, \
-            patch("httpx.post") as mock_post, \
-            patch("builtins.open", create=True) as mock_open, \
-            patch("json.dump") as mock_dump:
-
+        with (
+            patch("httpx.get") as mock_get,
+            patch("httpx.post") as mock_post,
+            patch("json.dump") as mock_dump,
+        ):
             mock_get.return_value = MagicMock(
                 json=lambda: {"esearchresult": {"idlist": ["11111"]}}
             )
@@ -73,4 +71,4 @@ class TestSearchIds:
 
             args, kwargs = mock_dump.call_args
             saved_articles = args[0]
-            assert len(saved_articles) == 1 
+            assert len(saved_articles) == 1

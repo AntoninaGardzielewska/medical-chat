@@ -1,9 +1,12 @@
+import functools
 import json
+import os
 import time
 import xml.etree.ElementTree as ET
-import functools
+
 import httpx
-import os
+
+
 def retry(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -14,14 +17,16 @@ def retry(func):
                 if attempt == 2:
                     raise
                 time.sleep(1)
+
     return wrapper
+
 
 class FetchArticles:
     def __init__(self, terms: list[str], no_articles: int, path_to_results: str):
         self.terms = terms
         self.no_articles = no_articles
         self.path_to_results = path_to_results
-                
+
     @retry
     def search_for_ids(self, term: str, max_results: int) -> list[str]:
         response = httpx.get(
@@ -64,7 +69,6 @@ class FetchArticles:
                 authors.append({"first_name": first_name, "last_name": last_name})
             if all([pmid, year, article_title, text]):
                 articles.append(
-            
                     {
                         "pmid": pmid,
                         "year": year,
@@ -96,5 +100,7 @@ class FetchArticles:
 if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(BASE_DIR, "articles.json")
-    fetch_articles = FetchArticles(["type 2 diabetes", "hypertension", "heart failure"], 1000, path)
+    fetch_articles = FetchArticles(
+        ["type 2 diabetes", "hypertension", "heart failure"], 1000, path
+    )
     fetch_articles.get_articles()
