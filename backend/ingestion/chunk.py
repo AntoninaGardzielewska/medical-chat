@@ -1,12 +1,15 @@
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 import json
 import os
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
 class ChunkArticles:
     def __init__(self):
         self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size = 200,
-            chunk_overlap = 20,
-            length_function = len,
+            chunk_size=200,
+            chunk_overlap=20,
+            length_function=len,
         )
 
     def chunk_article(self, article: dict) -> list[dict]:
@@ -18,7 +21,9 @@ class ChunkArticles:
             article_chunks.append(new_article)
         return article_chunks
 
-    def create_chunks(self, input_path: str, output_path: str, verbose: bool = False) -> None:
+    def create_chunks(
+        self, input_path: str, output_path: str, verbose: bool = False
+    ) -> None:
         chunks = []
         with open(input_path) as input_file:
             data = json.load(input_file)
@@ -30,7 +35,7 @@ class ChunkArticles:
             print(f"Created {len(chunks)} chunks")
         with open(output_path, "w") as output_file:
             json.dump(chunks, output_file, indent=2)
-        
+
 
 if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
