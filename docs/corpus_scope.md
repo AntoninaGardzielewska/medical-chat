@@ -40,5 +40,3 @@ We filter for **Review** and **Systematic Review** articles only.
 | Batch size | 200 | PubMed `efetch` API limit per request |
 | Rate limit | 3 requests/sec | PubMed E-utilities policy |
 | Fields stored | pmid, title, abstract, authors, journal, year | Minimum needed for RAG + citation display |
-
----

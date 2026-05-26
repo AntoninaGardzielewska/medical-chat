@@ -1,5 +1,8 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from ingestion.chunk import ChunkArticles
 from ingestion.fetch import FetchArticles
 
 
@@ -27,7 +30,7 @@ class TestSearchIds:
     """
 
     def test_returns_list_of_ids(self):
-        fetcher = FetchArticles(["diabetes"], 10, "./test_output.json")
+        fetcher = FetchArticles(["diabetes"], 10, "./tests/test_output.json")
 
         with patch("httpx.get") as mock_get:
             mock_get.return_value = MagicMock(
@@ -38,7 +41,7 @@ class TestSearchIds:
         assert result == ["11111", "22222", "33333"]
 
     def test_fetch_ids_returns_list_of_dicts(self):
-        fetcher = FetchArticles(["diabetes"], 10, "./test_output.json")
+        fetcher = FetchArticles(["diabetes"], 10, "./tests/test_output.json")
 
         with patch("httpx.post") as mock_post:
             mock_post.return_value = MagicMock(text=self.xml_text)
@@ -55,7 +58,9 @@ class TestSearchIds:
             ]
 
     def test_get_articles_deduplicates(self):
-        fetcher = FetchArticles(["diabetes", "hypertension"], 10, "./test_output.json")
+        fetcher = FetchArticles(
+            ["diabetes", "hypertension"], 10, "./tests/test_output.json"
+        )
 
         with (
             patch("httpx.get") as mock_get,
@@ -72,3 +77,49 @@ class TestSearchIds:
             args, kwargs = mock_dump.call_args
             saved_articles = args[0]
             assert len(saved_articles) == 1
+
+
+SAMPLE_ARTICLE = {
+    "pmid": "12345678",
+    "year": "2022",
+    "authors": [{"first_name": "John", "last_name": "Smith"}],
+    "journal": "NEJM",
+    "article_title": "Dietary sugar and T2DM",
+    "article_text": "Background: " + "diabetes is a chronic condition. " * 30,
+}
+
+
+@pytest.fixture
+def chunker():
+    return ChunkArticles()
+
+
+class TestChunkArticles:
+    def test_metadata_preserved(self, chunker):
+        chunks = chunker.chunk_article(SAMPLE_ARTICLE)
+        for chunk in chunks:
+            assert chunk["pmid"] == SAMPLE_ARTICLE["pmid"]
+            assert chunk["year"] == SAMPLE_ARTICLE["year"]
+            assert chunk["journal"] == SAMPLE_ARTICLE["journal"]
+            assert chunk["article_title"] == SAMPLE_ARTICLE["article_title"]
+            assert chunk["authors"] == SAMPLE_ARTICLE["authors"]
+
+    def test_long_text_produces_multiple_chunks(self, chunker):
+        chunks = chunker.chunk_article(SAMPLE_ARTICLE)
+        assert len(chunks) > 1
+
+    def test_short_text_produces_one_chunk(self, chunker):
+        short_article = SAMPLE_ARTICLE.copy()
+        short_article["article_text"] = "Diabetes is a chronic condition."
+        chunks = chunker.chunk_article(short_article)
+        assert len(chunks) == 1
+
+    def test_chunk_text_is_shorter_than_original(self, chunker):
+        chunks = chunker.chunk_article(SAMPLE_ARTICLE)
+        for chunk in chunks:
+            assert len(chunk["article_text"]) < len(SAMPLE_ARTICLE["article_text"])
+
+    def test_original_article_not_mutated(self, chunker):
+        original_text = SAMPLE_ARTICLE["article_text"]
+        chunker.chunk_article(SAMPLE_ARTICLE)
+        assert SAMPLE_ARTICLE["article_text"] == original_text

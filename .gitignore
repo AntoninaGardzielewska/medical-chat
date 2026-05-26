@@ -242,3 +242,5 @@ __pycache__/
 *:Zone.Identifier
 
 /backend/ingestion/articles.json
+/backend/ingestion/chunked_articles.json
+/backend/tests/test_output.json
