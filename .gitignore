@@ -240,3 +240,5 @@ __pycache__/
 *.log
 
 *:Zone.Identifier
+
+/backend/ingestion/articles.json
