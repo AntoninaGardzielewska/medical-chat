@@ -15,9 +15,13 @@ class ChunkArticles:
     def chunk_article(self, article: dict) -> list[dict]:
         article_chunks = []
         text_chunks = self.splitter.split_text(article["article_text"])
+        id = article["pmid"]
+        idx = 0
         for text_chunk in text_chunks:
             new_article = article.copy()
             new_article["article_text"] = text_chunk
+            new_article["id"] = id + "_" + str(idx)
+            idx += 1
             article_chunks.append(new_article)
         return article_chunks
 
