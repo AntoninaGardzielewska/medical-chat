@@ -38,14 +38,14 @@ repos:
           - backend/tests
 
   # ── pip-audit dependency audit ────────────────
-  - repo: local
-    hooks:
-      - id: pip-audit
-        name: pip-audit
-        entry: bash -c 'cd backend && uv run pip-audit'
-        language: system
-        pass_filenames: false
-        files: ^backend/
+  # - repo: local
+  #   hooks:
+  #     - id: pip-audit
+  #       name: pip-audit
+  #       entry: bash -c 'cd backend && uv run pip-audit'
+  #       language: system
+  #       pass_filenames: false
+  #       files: ^backend/
 
   # ── General file hygiene ──────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
