@@ -244,3 +244,4 @@ __pycache__/
 /backend/ingestion/articles.json
 /backend/ingestion/chunked_articles.json
 /backend/tests/test_output.json
+/backend/chroma_db
