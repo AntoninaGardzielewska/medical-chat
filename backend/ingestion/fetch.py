@@ -1,35 +1,45 @@
+from __future__ import annotations
+
 import functools
 import json
-import os
 import time
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Any
 
 import httpx
 
 
-def retry(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        for attempt in range(3):
-            try:
-                return func(*args, **kwargs)
-            except httpx.RequestError:
-                if attempt == 2:
-                    raise
-                time.sleep(1)
+def retry(max_attempts: int = 3, delay_seconds: float = 1.0):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except (httpx.RequestError, httpx.HTTPStatusError, ET.ParseError):
+                    if attempt == max_attempts:
+                        raise
+                    time.sleep(delay_seconds)
+            raise RuntimeError("Retry loop exited unexpectedly")
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
-class FetchArticles:
-    def __init__(self, terms: list[str], no_articles: int, path_to_results: str):
+class PubMedFetcher:
+    def __init__(
+        self, terms: list[str], max_results: int, output_path: Path | str
+    ) -> None:
         self.terms = terms
-        self.no_articles = no_articles
-        self.path_to_results = path_to_results
+        self.max_results = max_results
+        self.output_path = Path(output_path)
+        self.client = httpx.Client(timeout=10.0)
 
-    @retry
+    @retry()
     def search_for_ids(self, term: str, max_results: int) -> list[str]:
-        response = httpx.get(
+        response = self.client.get(
             "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
             params={
                 "db": "pubmed",
@@ -39,34 +49,40 @@ class FetchArticles:
                 "sort": "relevance",
             },
         )
+        response.raise_for_status()
+        data = response.json()
+        return data["esearchresult"]["idlist"]
 
-        return response.json()["esearchresult"]["idlist"]
-
-    @retry
-    def fetch_by_ids(self, ids: list[str]) -> list[dict]:
-        def safe_text(node, search):
+    @retry()
+    def fetch_by_ids(self, ids: list[str]) -> list[dict[str, Any]]:
+        def safe_text(node: ET.Element | None, search: str) -> str | None:
             if node is None:
                 return None
             result = node.find(search)
             return result.text if result is not None else None
 
-        response = httpx.post(
+        response = self.client.post(
             "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
             params={"db": "pubmed", "retmode": "xml", "id": ",".join(ids)},
         )
-        articles = []
+        response.raise_for_status()
+
         root = ET.fromstring(response.text)
+        articles: list[dict[str, Any]] = []
         for article in root.findall(".//PubmedArticle"):
             pmid = safe_text(article, ".//PMID")
             year = safe_text(article, ".//Year")
             article_title = safe_text(article, ".//ArticleTitle")
             text = safe_text(article, ".//AbstractText")
             journal = safe_text(article, ".//Journal/Title")
-            authors = []
+            authors: list[dict[str, str | None]] = []
             for author in article.findall(".//Author"):
-                last_name = safe_text(author, ".//LastName")
-                first_name = safe_text(author, ".//ForeName")
-                authors.append({"first_name": first_name, "last_name": last_name})
+                authors.append(
+                    {
+                        "first_name": safe_text(author, ".//ForeName"),
+                        "last_name": safe_text(author, ".//LastName"),
+                    }
+                )
             if all([pmid, year, article_title, text]):
                 articles.append(
                     {
@@ -80,27 +96,38 @@ class FetchArticles:
                 )
         return articles
 
-    def get_articles(self) -> None:
-        articles = []
-        seen_pmids = set()
+    def get_articles(self) -> list[dict[str, Any]]:
+        articles: list[dict[str, Any]] = []
+        seen_pmids: set[str] = set()
+
         for term in self.terms:
-            ids = self.search_for_ids(term, self.no_articles)
-            for batch in range(0, len(ids), 200):
-                articles_batch = self.fetch_by_ids(ids[batch : batch + 200])
+            ids = self.search_for_ids(term, self.max_results)
+            for batch_start in range(0, len(ids), 200):
+                batch_ids = ids[batch_start : batch_start + 200]
+                articles_batch = self.fetch_by_ids(batch_ids)
                 for article in articles_batch:
-                    if article["pmid"] not in seen_pmids:
-                        seen_pmids.add(article["pmid"])
+                    pmid = article["pmid"]
+                    if pmid not in seen_pmids:
+                        seen_pmids.add(pmid)
                         articles.append(article)
                 time.sleep(0.4)
-        with open(self.path_to_results, "w") as file:
+
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.output_path.open("w", encoding="utf-8") as file:
             json.dump(articles, file, indent=2)
-        return
+        return articles
+
+
+def main() -> None:
+    base_dir = Path(__file__).resolve().parent
+    output_path = base_dir / "articles.json"
+    fetcher = PubMedFetcher(
+        terms=["type 2 diabetes", "hypertension", "heart failure"],
+        max_results=1000,
+        output_path=output_path,
+    )
+    fetcher.get_articles()
 
 
 if __name__ == "__main__":
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(BASE_DIR, "articles.json")
-    fetch_articles = FetchArticles(
-        ["type 2 diabetes", "hypertension", "heart failure"], 1000, path
-    )
-    fetch_articles.get_articles()
+    main()
