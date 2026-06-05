@@ -1,6 +1,6 @@
 # 🏥 Medical Chat
 
-An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend.
+An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend. Answers are grounded in PubMed peer-reviewed literature using a RAG (Retrieval-Augmented Generation) pipeline with a fully local LLM — no API keys, no data leaving your machine.
 
 > ⚠️ **Disclaimer:** This tool is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional.
 
@@ -10,11 +10,20 @@ An AI-powered medical chat assistant built with **FastAPI** (Python) on the back
 
 ```
 medical-chat/
-├── backend/          # FastAPI + Python (uv)
-│   ├── src/          # Application source
-│   └── tests/        # Pytest test suite
-├── frontend/         # Next.js (TypeScript)
-│   └── app/          # App Router pages
+├── backend/                  # FastAPI + Python (uv)
+│   ├── ingestion/            # PubMed fetch, chunk, embed, store
+│   │   ├── fetch.py
+│   │   ├── chunk.py
+│   │   ├── embed_and_store.py
+│   │   └── run_ingestion.py
+│   ├── rag/                  # Query pipeline
+│   │   ├── llm.py            # Ollama HTTP client
+│   │   ├── rewrite.py
+│   │   ├── retrieve.py
+│   │   └── synthesize.py
+│   └── tests/
+├── frontend/                 # Next.js (TypeScript)
+│   └── app/
 └── docker-compose.yml
 ```
 
@@ -40,19 +49,41 @@ cd medical-chat
 
 # 2. Configure environment variables
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
 
-# 3. Start both services
+# 3. Start all services (backend, frontend, Ollama)
 docker compose up --build
 
-# 4. Open in browser
+# 4. Pull the LLM model (run once after first startup)
+docker exec -it medical-chat-ollama ollama pull llama3.2:1b
+
+# 5. Open in browser
 #    Frontend → http://localhost:3000
 #    Backend  → http://localhost:8000/docs
 ```
 
+> **Note:** Step 4 downloads ~600MB and only needs to be run once. The model is stored in a Docker volume (`ollama`) and persists across restarts.
+
 ---
 
 ## Local Development (without Docker)
+
+### Ollama (required for LLM features)
+
+Install Ollama and pull the model before starting the backend:
+
+```bash
+# Install Ollama (Linux/WSL)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull the model (run once, ~600MB download)
+ollama pull llama3.2:1b
+
+# Ollama starts automatically after install
+# If needed, start it manually:
+ollama serve
+```
+
+> **WSL users:** If you see `Error: listen tcp 127.0.0.1:11434: bind: address already in use`, Ollama is already running — skip `ollama serve` and go straight to `ollama pull`.
 
 ### Backend
 
@@ -90,6 +121,26 @@ uv run pytest tests/ --cov=src --cov-report=term-missing
 
 # Single test file
 uv run pytest tests/test_endpoints.py -v
+```
+
+### Manual LLM test
+
+To verify Ollama is working correctly:
+
+```bash
+# Test via curl (no Python needed)
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2:1b",
+  "prompt": "What is hypertension?",
+  "stream": false
+}'
+
+# Test via Python
+python3 -c "
+from backend.rag.llm import OllamaChat
+chat = OllamaChat(model='llama3.2:1b')
+print(chat.ask_llm('What is hypertension?'))
+"
 ```
 
 ---
@@ -130,12 +181,23 @@ pre-commit run --all-files
 
 See [`.env.example`](.env.example) for a full reference with descriptions.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | API key from console.anthropic.com |
-| `APP_ENV` | No | `development` \| `staging` \| `production` |
-| `DATABASE_URL` | No | PostgreSQL connection string |
-| `NEXT_PUBLIC_API_URL` | No | Backend URL visible to the browser |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama server URL (set to `http://ollama:11434` inside Docker automatically) |
+| `APP_ENV` | No | `development` | `development` \| `staging` \| `production` |
+| `DATABASE_URL` | No | — | PostgreSQL connection string |
+| `CHROMA_DB_PATH` | No | `/data/chroma_db` | Path to ChromaDB storage |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend URL visible to the browser |
+
+---
+
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Frontend | 3000 | Next.js React UI |
+| Backend | 8000 | FastAPI REST API + `/docs` Swagger UI |
+| Ollama | 11434 | Local LLM server (llama3.2:1b) |
 
 ---
 
