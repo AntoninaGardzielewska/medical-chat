@@ -56,7 +56,7 @@ services:
     volumes:
       - ollama:/root/.ollama
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-s", "http://localhost:11434/", "-o", "/dev/null"]
       interval: 5s
       timeout: 10s
       retries: 60
