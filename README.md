@@ -1,6 +1,6 @@
 # 🏥 Medical Chat
 
-An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend. Answers are grounded in PubMed peer-reviewed literature using a RAG (Retrieval-Augmented Generation) pipeline with a fully local LLM — no API keys, no data leaving your machine.
+An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend. The project is designed to support a RAG-style retrieval pipeline and local Ollama LLM integration, while the current backend chat endpoint remains a placeholder response.
 
 > ⚠️ **Disclaimer:** This tool is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional.
 
@@ -10,20 +10,34 @@ An AI-powered medical chat assistant built with **FastAPI** (Python) on the back
 
 ```
 medical-chat/
-├── backend/                  # FastAPI + Python (uv)
-│   ├── ingestion/            # PubMed fetch, chunk, embed, store
-│   │   ├── fetch.py
+├── backend/                  # FastAPI + Python
+│   ├── ingestion/            # Data preparation helpers
 │   │   ├── chunk.py
 │   │   ├── embed_and_store.py
-│   │   └── run_ingestion.py
-│   ├── rag/                  # Query pipeline
+│   │   ├── fetch.py
+│   │   ├── inspect_db.py
+│   │   ├── run_ingestion.py
+│   │   └── articles.json
+│   ├── rag/                  # RAG / Ollama helper modules
 │   │   ├── llm.py            # Ollama HTTP client
-│   │   ├── rewrite.py
 │   │   ├── retrieve.py
-│   │   └── synthesize.py
-│   └── tests/
-├── frontend/                 # Next.js (TypeScript)
-│   └── app/
+│   │   ├── rewrite.py
+│   │   └── __init__.py
+│   ├── src/                  # FastAPI application
+│   │   ├── config.py
+│   │   ├── main.py
+│   │   └── routers/
+│   │       ├── chat.py
+│   │       └── health.py
+│   └── tests/                # Python tests
+├── frontend/                 # Next.js UI
+│   ├── app/
+│   │   ├── components/
+│   │   ├── health/
+│   │   ├── layout.jsx
+│   │   └── page.js
+│   ├── Dockerfile
+│   └── package.json
 └── docker-compose.yml
 ```
 
@@ -48,7 +62,7 @@ git clone https://github.com/your-org/medical-chat.git
 cd medical-chat
 
 # 2. Configure environment variables
-cp .env.example .env
+cp .env.example .env || true
 
 # 3. Start all services (backend, frontend, Ollama)
 docker compose up --build
@@ -125,17 +139,19 @@ uv run pytest tests/test_endpoints.py -v
 
 ### Manual LLM test
 
-To verify Ollama is working correctly:
+To verify Ollama is reachable:
 
 ```bash
-# Test via curl (no Python needed)
 curl http://localhost:11434/api/generate -d '{
   "model": "llama3.2:1b",
   "prompt": "What is hypertension?",
   "stream": false
 }'
+```
 
-# Test via Python
+Or via Python:
+
+```bash
 python3 -c "
 from backend.rag.llm import OllamaChat
 chat = OllamaChat(model='llama3.2:1b')
@@ -179,14 +195,17 @@ pre-commit run --all-files
 
 ## Environment Variables
 
-See [`.env.example`](.env.example) for a full reference with descriptions.
+Create a `.env` file in the project root or set environment variables directly.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama server URL (set to `http://ollama:11434` inside Docker automatically) |
 | `APP_ENV` | No | `development` | `development` \| `staging` \| `production` |
+| `LOG_LEVEL` | No | `INFO` | Application log verbosity |
+| `CORS_ORIGINS` | No | `["http://localhost:3000"]` | Allowed CORS origins for the backend |
+| `ANTHROPIC_API_KEY` | No | — | Anthropic API key placeholder for future integration |
 | `DATABASE_URL` | No | — | PostgreSQL connection string |
-| `CHROMA_DB_PATH` | No | `/data/chroma_db` | Path to ChromaDB storage |
+| `CHROMA_DB_PATH` | No | `./chroma_db` | Path to ChromaDB storage |
 | `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend URL visible to the browser |
 
 ---
@@ -198,6 +217,13 @@ See [`.env.example`](.env.example) for a full reference with descriptions.
 | Frontend | 3000 | Next.js React UI |
 | Backend | 8000 | FastAPI REST API + `/docs` Swagger UI |
 | Ollama | 11434 | Local LLM server (llama3.2:1b) |
+
+---
+
+## Notes
+
+- The backend currently exposes a placeholder `/api/v1/chat` endpoint.
+- The `backend/ingestion` and `backend/rag` packages contain helper modules that support ingestion, embedding, retrieval, and Ollama integration, but the chat API is not yet fully wired to the RAG pipeline.
 
 ---
 

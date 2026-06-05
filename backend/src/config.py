@@ -26,5 +26,8 @@ class Settings(BaseSettings):
     # ChromaDB (future use)
     chroma_db_path: str = "./chroma_db"
 
+    # Ollama
+    ollama_base_url: str = "http://localhost:11434"
+
 
 settings = Settings()
