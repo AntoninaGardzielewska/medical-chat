@@ -23,12 +23,3 @@ class OllamaChat:
             ) from e
 
         return response.json()["response"]
-
-    def rewrite_user_query(self, user_question: str) -> str:
-        prompt = f"""
-            You are a medical research asistent.
-            Rewrite the following question into precise clinical language suitable for searching PubMed literature.
-            Return only the rewritten query, nothing else.
-            Question: {user_question}
-        """
-        return self.ask_llm(prompt)
