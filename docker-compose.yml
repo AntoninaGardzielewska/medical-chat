@@ -16,14 +16,15 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
       ollama:
-        condition: service_started
+        condition: service_healthy  # Changed from service_started
     volumes:
       - chroma_data:/data/chroma_db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 60s  # ADDED: Give 60s for uvicorn to start
     restart: unless-stopped
 
   frontend:
@@ -45,6 +46,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 30s  # ADDED: Give 30s for Next.js to start
     restart: unless-stopped
     shm_size: 2gb
     mem_limit: 3gb
@@ -60,8 +62,7 @@ services:
       interval: 5s
       timeout: 10s
       retries: 60
-      start_period: 120s
-
+      start_period: 180s  # INCREASED: Ollama takes time to initialize
 
 volumes:
   chroma_data:
