@@ -21,9 +21,10 @@ services:
       - chroma_data:/data/chroma_db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 60s
     restart: unless-stopped
 
   frontend:
@@ -45,6 +46,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 30s
     restart: unless-stopped
     shm_size: 2gb
     mem_limit: 3gb
@@ -60,8 +62,7 @@ services:
       interval: 5s
       timeout: 10s
       retries: 60
-      start_period: 120s
-
+      start_period: 180s
 
 volumes:
   chroma_data:

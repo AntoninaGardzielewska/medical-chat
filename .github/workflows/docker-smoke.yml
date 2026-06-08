@@ -33,6 +33,7 @@ jobs:
           done
           echo "Backend did not become healthy"
           docker compose logs backend
+          docker compose ps
           exit 1
 
       - name: Check frontend is up

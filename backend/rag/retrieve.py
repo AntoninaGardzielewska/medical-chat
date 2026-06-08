@@ -6,11 +6,20 @@ from ingestion.embed_and_store import ChromaDocumentStore
 base_dir = Path(__file__).resolve().parent
 path_to_chroma = base_dir.parent / "chroma_db"
 
-_chroma_document = ChromaDocumentStore(path_to_chroma, "pubmed_abstracts")
+_chroma_document = None
+
+
+def _get_chroma_store():
+    """Lazy initialization of ChromaDocumentStore."""
+    global _chroma_document
+    if _chroma_document is None:
+        _chroma_document = ChromaDocumentStore(path_to_chroma, "pubmed_abstracts")
+    return _chroma_document
 
 
 def retrieve(query: str, k: int = 5) -> list[dict]:
-    output = _chroma_document.get_item(query, k)
+    chroma = _get_chroma_store()
+    output = chroma.get_item(query, k)
 
     documents = output["documents"][0]
     metadatas = output["metadatas"][0]

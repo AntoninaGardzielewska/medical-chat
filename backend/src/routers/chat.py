@@ -1,39 +1,40 @@
-"""Chat router - placeholder implementation."""
-
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from rag.retrieve import retrieve
+from rag.rewrite import rewrite_query
+from rag.synthesize import synthesize
 
 router = APIRouter()
 
 
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
-    session_id: str | None = None
+    question: str
+
+
+class Reference(BaseModel):
+    number: int
+    pmid: str
+    title: str
+    authors: str
+    journal: str
+    year: str
+    pubmed_url: str
 
 
 class ChatResponse(BaseModel):
-    message: ChatMessage
-    session_id: str
+    disclaimer: str
+    answer: str
+    references: list[Reference]
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
-    """Process a chat message and return a response.
+def chat(request: ChatRequest) -> ChatResponse:
+    if not request.question.strip():
+        raise HTTPException(status_code=422, detail="Question cannot be empty")
 
-    Placeholder: returns a static response until LLM integration is wired up.
-    """
-    return ChatResponse(
-        message=ChatMessage(
-            role="assistant",
-            content=(
-                "Hello! I'm your medical assistant. "
-                "This is a placeholder response — full AI integration coming soon."
-            ),
-        ),
-        session_id=request.session_id or "placeholder-session",
-    )
+    rewritten = rewrite_query(request.question)
+    chunks = retrieve(rewritten, k=5)
+    result = synthesize(request.question, chunks)
+
+    return ChatResponse(**result)

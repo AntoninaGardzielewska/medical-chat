@@ -10,7 +10,15 @@ DISCLAIMER = (
     "Always consult a qualified healthcare provider."
 )
 
-_llm = OllamaChat()
+_llm = None
+
+
+def _get_llm():
+    """Lazy initialization of OllamaChat."""
+    global _llm
+    if _llm is None:
+        _llm = OllamaChat()
+    return _llm
 
 
 def _format_authors(authors_raw: str | list) -> str:
@@ -91,8 +99,9 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
             "references": [],
         }
 
+    llm = _get_llm()
     prompt = _build_prompt(question, chunks)
-    raw_response = _llm.ask_llm(prompt)
+    raw_response = llm.ask_llm(prompt)
 
     # Strip markdown fences if the model adds them despite instructions
     cleaned = (
