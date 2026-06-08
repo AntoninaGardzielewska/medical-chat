@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.rag.retrieve import retrieve
-from backend.rag.rewrite import rewrite_query
-from backend.rag.synthesize import synthesize
+from rag.retrieve import retrieve
+from rag.rewrite import rewrite_query
+from rag.synthesize import synthesize
 
 router = APIRouter()
 

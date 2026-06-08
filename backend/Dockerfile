@@ -14,8 +14,10 @@ COPY pyproject.toml uv.lock* ./
 # Install dependencies (no dev group in prod)
 RUN uv sync --frozen --no-dev
 
-# Copy source
+# Copy source code (including rag and ingestion modules)
 COPY src/ ./src/
+COPY rag/ ./rag/
+COPY ingestion/ ./ingestion/
 
 EXPOSE 8000
 
