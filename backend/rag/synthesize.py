@@ -30,7 +30,7 @@ def _format_authors(authors_raw: str | list) -> str:
         initials = first[0] if first else ""
         if last:
             parts.append(f"{last} {initials}".strip())
-    
+
     result = ", ".join(parts)
     if len(authors) > 3:
         result += " et al."
@@ -69,15 +69,17 @@ def _build_references(chunks: list[dict]) -> list[dict]:
     references = []
     for i, chunk in enumerate(chunks, 1):
         pmid = chunk.get("pmid", "")
-        references.append({
-            "number": i,
-            "pmid": pmid,
-            "title": chunk.get("title", ""),
-            "authors": _format_authors(chunk.get("authors", [])),
-            "journal": chunk.get("journal", ""),
-            "year": chunk.get("year", ""),
-            "pubmed_url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-        })
+        references.append(
+            {
+                "number": i,
+                "pmid": pmid,
+                "title": chunk.get("title", ""),
+                "authors": _format_authors(chunk.get("authors", [])),
+                "journal": chunk.get("journal", ""),
+                "year": chunk.get("year", ""),
+                "pubmed_url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+            }
+        )
     return references
 
 
@@ -93,7 +95,13 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
     raw_response = _llm.ask_llm(prompt)
 
     # Strip markdown fences if the model adds them despite instructions
-    cleaned = raw_response.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    cleaned = (
+        raw_response.strip()
+        .removeprefix("```json")
+        .removeprefix("```")
+        .removesuffix("```")
+        .strip()
+    )
 
     try:
         parsed = json.loads(cleaned)
@@ -108,10 +116,12 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
         "references": _build_references(chunks),
     }
 
+
 if __name__ == "__main__":
     import time
-    from rag.rewrite import rewrite_query
+
     from rag.retrieve import retrieve
+    from rag.rewrite import rewrite_query
 
     question = "does sugar cause diabetes?"
     print(f"User question: {question}\n")
@@ -130,5 +140,7 @@ if __name__ == "__main__":
     print(result["answer"])
     print("\nREFERENCES:")
     for ref in result["references"]:
-        print(f"[{ref['number']}] {ref['authors']} ({ref['year']}). {ref['title']}. {ref['journal']}.")
+        print(
+            f"[{ref['number']}] {ref['authors']} ({ref['year']}). {ref['title']}. {ref['journal']}."
+        )
         print(f"    {ref['pubmed_url']}")
