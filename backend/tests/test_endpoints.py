@@ -15,31 +15,67 @@ def client() -> TestClient:
 
 def test_health_check(client: TestClient) -> None:
     response = client.get("/health")
+
     assert response.status_code == 200
+
     data = response.json()
+
     assert data["status"] == "ok"
     assert "version" in data
 
 
-@patch("rag.llm.OllamaChat.ask_llm")
-def test_chat_placeholder(mock_ollama, client: TestClient) -> None:
-    mock_ollama.return_value = "Mocked response to your question."
+@patch("src.routers.chat.synthesize")
+@patch("src.routers.chat.retrieve")
+@patch("src.routers.chat.rewrite_query")
+def test_chat_success(
+    mock_rewrite,
+    mock_retrieve,
+    mock_synthesize,
+    client: TestClient,
+) -> None:
+    mock_rewrite.return_value = "rewritten clinical query"
+    mock_retrieve.return_value = [
+        {
+            "text": "Example medical evidence",
+            "pmid": "12345678",
+        }
+    ]
 
-    payload = {
-        "question": "Hello",
+    mock_synthesize.return_value = {
+        "disclaimer": (
+            "This information is for educational purposes only "
+            "and is not medical advice."
+        ),
+        "answer": "Mocked medical answer.",
+        "references": [
+            {
+                "number": 1,
+                "pmid": "12345678",
+                "title": "Example Study",
+                "authors": "Smith et al.",
+                "journal": "Medical Journal",
+                "year": "2024",
+                "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+            }
+        ],
     }
-    response = client.post("/api/v1/chat", json=payload)
+
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Does sugar cause diabetes?"},
+    )
+
     assert response.status_code == 200
+
     data = response.json()
 
-    assert "disclaimer" in data
-    assert isinstance(data["disclaimer"], str)
+    assert data["answer"] == "Mocked medical answer."
+    assert len(data["references"]) == 1
+    assert data["references"][0]["pmid"] == "12345678"
 
-    assert "answer" in data
-    assert isinstance(data["answer"], str)
-
-    assert "references" in data
-    assert isinstance(data["references"], list)
+    mock_rewrite.assert_called_once_with("Does sugar cause diabetes?")
+    mock_retrieve.assert_called_once()
+    mock_synthesize.assert_called_once()
 
 
 def test_chat_empty_question(client: TestClient) -> None:
@@ -50,3 +86,12 @@ def test_chat_empty_question(client: TestClient) -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Question cannot be empty"
+
+
+def test_chat_missing_question(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/chat",
+        json={},
+    )
+
+    assert response.status_code == 422

@@ -19,6 +19,15 @@ from ingestion.fetch import PubMedFetcher
 # ============================================================================
 
 
+@pytest.fixture(autouse=True)
+def mock_model():
+    """Mock the embeddings model to avoid downloading from HuggingFace Hub during tests"""
+    with patch("transformers.AutoModel.from_pretrained") as mock_from_pretrained:
+        mock_model = MagicMock()
+        mock_from_pretrained.return_value = mock_model
+        yield mock_from_pretrained
+
+
 @pytest.fixture
 def sample_article() -> dict:
     """Sample article for testing."""
