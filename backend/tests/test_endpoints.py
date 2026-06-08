@@ -21,14 +21,30 @@ def test_health_check(client: TestClient) -> None:
 
 def test_chat_placeholder(client: TestClient) -> None:
     payload = {
-        "messages": [{"role": "user", "content": "Hello"}],
+        "question": "Hello",
     }
     response = client.post("/api/v1/chat", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["message"]["role"] == "assistant"
-    assert isinstance(data["message"]["content"], str)
-    assert "session_id" in data
+
+    assert "disclaimer" in data
+    assert isinstance(data["disclaimer"], str)
+
+    assert "answer" in data
+    assert isinstance(data["answer"], str)
+
+    assert "references" in data
+    assert isinstance(data["references"], list)
+
+
+def test_chat_empty_question(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": ""},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Question cannot be empty"
 
 
 def test_chat_with_session_id(client: TestClient) -> None:
