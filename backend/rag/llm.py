@@ -4,7 +4,7 @@ from src.config import settings
 
 
 class OllamaChat:
-    def __init__(self, model: str = "llama3.2:latest"):
+    def __init__(self, model: str = "llama3.2:1b"):
         self.client = httpx.Client(timeout=120.0)
         self.model = model
         self.base_url = settings.ollama_base_url
