@@ -1,15 +1,27 @@
 """Medical Chat Backend - FastAPI Application."""
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.routers import chat, health
 
+logging.basicConfig(level=settings.log_level)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+
 app = FastAPI(
     title="Medical Chat API",
     description="AI-powered medical chat backend",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
