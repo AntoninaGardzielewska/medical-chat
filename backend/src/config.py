@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:3001"]
 
     # Anthropic
     anthropic_api_key: str = ""
@@ -25,6 +25,13 @@ class Settings(BaseSettings):
 
     # ChromaDB (future use)
     chroma_db_path: str = "./chroma_db"
+
+    # Embeddings
+    embedding_model_name: str = "neuml/pubmedbert-base-embeddings"
+
+    # Retrieval tuning
+    retrieval_max_results: int = 20
+    retrieval_max_distance: float = 0.35
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
