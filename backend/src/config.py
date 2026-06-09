@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
+    ollama_model_name: str = "llama3.2:latest"
 
 
 settings = Settings()

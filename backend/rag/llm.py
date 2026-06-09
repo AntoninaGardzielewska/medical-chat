@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaChat:
-    def __init__(self, model: str = "llama3.2:latest"):
+    def __init__(self, model: str | None = None):
         self.client = httpx.Client(timeout=120.0)
-        self.model = model
+        self.model = model or settings.ollama_model_name
         self.base_url = settings.ollama_base_url
 
     def ask_llm(self, prompt: str) -> str:
