@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 
 from rag.llm import OllamaChat
+
+logger = logging.getLogger(__name__)
 
 DISCLAIMER = (
     "⚠️ This information is for research and educational purposes only. "
@@ -95,13 +99,21 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
     if not chunks:
         return {
             "disclaimer": DISCLAIMER,
-            "answer": "No relevant articles were found for your question.",
+            "answer": "I could not find enough evidence to answer your question.",
             "references": [],
+            "include_sources": False,
         }
 
+    total_start = time.perf_counter()
     llm = _get_llm()
+
+    prompt_start = time.perf_counter()
     prompt = _build_prompt(question, chunks)
+    prompt_time = time.perf_counter() - prompt_start
+
+    llm_start = time.perf_counter()
     raw_response = llm.ask_llm(prompt)
+    llm_time = time.perf_counter() - llm_start
 
     # Strip markdown fences if the model adds them despite instructions
     cleaned = (
@@ -112,17 +124,29 @@ def synthesize(question: str, chunks: list[dict]) -> dict:
         .strip()
     )
 
+    parse_start = time.perf_counter()
     try:
         parsed = json.loads(cleaned)
         answer = parsed.get("answer", raw_response)
     except json.JSONDecodeError:
-        # Use raw text if JSON parsing fails
         answer = raw_response
+    parse_time = time.perf_counter() - parse_start
+    total_time = time.perf_counter() - total_start
+
+    logger.info(
+        "synthesize completed in %.3f s (prompt=%.3f, llm=%.3f, parse=%.3f, chunks=%d)",
+        total_time,
+        prompt_time,
+        llm_time,
+        parse_time,
+        len(chunks),
+    )
 
     return {
         "disclaimer": DISCLAIMER,
         "answer": answer,
         "references": _build_references(chunks),
+        "include_sources": bool(chunks),
     }
 
 
@@ -139,7 +163,7 @@ if __name__ == "__main__":
     rewritten = rewrite_query(question)
     print(f"Rewritten query: {rewritten}\n")
 
-    chunks = retrieve(rewritten, k=2)
+    chunks = retrieve(rewritten, max_results=2)
     print(f"Retrieved {len(chunks)} chunks\n")
 
     result = synthesize(question, chunks)
