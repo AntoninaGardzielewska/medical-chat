@@ -320,9 +320,7 @@ class TestChromaDocumentStore:
     @pytest.fixture
     def mock_chromadb(self):
         """Mock chromadb PersistentClient."""
-        with patch(
-            "ingestion.embed_and_store.chromadb.PersistentClient"
-        ) as mock_client:
+        with patch("chromadb.PersistentClient") as mock_client:
             mock_instance = MagicMock()
             mock_client.return_value = mock_instance
             yield mock_instance
@@ -330,7 +328,7 @@ class TestChromaDocumentStore:
     @pytest.fixture
     def mock_model(self):
         """Mock SentenceTransformer model."""
-        with patch("ingestion.embed_and_store.SentenceTransformer") as mock_st:
+        with patch("sentence_transformers.SentenceTransformer") as mock_st:
             mock_instance = MagicMock()
             mock_st.return_value = mock_instance
             yield mock_instance
@@ -349,13 +347,8 @@ class TestChromaDocumentStore:
     ):
         """Verify that device selection defaults to CPU."""
         with (
-            patch(
-                "ingestion.embed_and_store.torch.cuda.is_available", return_value=False
-            ),
-            patch(
-                "ingestion.embed_and_store.torch.backends.mps.is_available",
-                return_value=False,
-            ),
+            patch("torch.cuda.is_available", return_value=False),
+            patch("torch.backends.mps.is_available", return_value=False),
         ):
             store = ChromaDocumentStore(temp_directory, "test")
             assert store.device == "cpu"
