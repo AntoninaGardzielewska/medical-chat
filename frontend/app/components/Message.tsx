@@ -2,7 +2,7 @@
 
 import Disclaimer from "./Disclaimer";
 import References from "./References";
-import type { Reference } from "@/lib/api";
+import type { Reference } from "../../lib/api";
 
 export interface MessageData {
   role: "user" | "assistant";

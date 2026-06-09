@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import MessageThread from "./components/MessageThread";
 import ChatInput from "./components/ChatInput";
-import { sendMessage } from "@/lib/api";
+import { sendMessage } from "../lib/api";
 import type { MessageData } from "./components/Message";
 
 export default function HomePage() {

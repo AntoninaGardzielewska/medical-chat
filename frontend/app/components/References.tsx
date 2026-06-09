@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Reference } from "@/lib/api";
+import type { Reference } from "../../lib/api";
 
 interface ReferencesProps {
   references: Reference[];
