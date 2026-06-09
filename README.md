@@ -1,6 +1,6 @@
 # 🏥 Medical Chat
 
-An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend. The project is designed to support a RAG-style retrieval pipeline and local Ollama LLM integration, while the current backend chat endpoint remains a placeholder response.
+An AI-powered medical chat assistant built with **FastAPI** (Python) on the backend and **Next.js** (Node.js) on the frontend. The project is built around a RAG-style retrieval pipeline and local Ollama LLM integration. The backend `/api/v1/chat` endpoint is implemented and wired to retrieve from ChromaDB and synthesize answers via Ollama.
 
 > ⚠️ **Disclaimer:** This tool is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional.
 
@@ -11,17 +11,18 @@ An AI-powered medical chat assistant built with **FastAPI** (Python) on the back
 ```
 medical-chat/
 ├── backend/                  # FastAPI + Python
+│   ├── chroma_db/            # Local ChromaDB persistence (created at runtime)
 │   ├── ingestion/            # Data preparation helpers
 │   │   ├── chunk.py
 │   │   ├── embed_and_store.py
 │   │   ├── fetch.py
 │   │   ├── inspect_db.py
-│   │   ├── run_ingestion.py
-│   │   └── articles.json
+│   │   └── run_ingestion.py
 │   ├── rag/                  # RAG / Ollama helper modules
 │   │   ├── llm.py            # Ollama HTTP client
 │   │   ├── retrieve.py
 │   │   ├── rewrite.py
+│   │   ├── synthesize.py
 │   │   └── __init__.py
 │   ├── src/                  # FastAPI application
 │   │   ├── config.py
@@ -34,14 +35,21 @@ medical-chat/
 │   ├── app/
 │   │   ├── components/
 │   │   ├── health/
-│   │   ├── layout.jsx
-│   │   └── page.js
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── Dockerfile
 │   └── package.json
 └── docker-compose.yml
 ```
 
 ---
+
+## Current state
+
+- Backend `/api/v1/chat` is implemented and uses the RAG pipeline: ChromaDB retrieval plus Ollama answer synthesis.
+- Data ingestion is handled by `backend/ingestion/run_ingestion.py`, which creates `backend/chroma_db` and loads PubMed-derived chunks into ChromaDB.
+- Docker uses a named volume for ChromaDB persistence (`chroma_data`), while local development stores the DB under `backend/chroma_db` by default.
+- The frontend is configured to talk to the backend, but the project remains an experimental proof of concept and should not be used as medical advice.
 
 ## Prerequisites
 
@@ -67,17 +75,43 @@ cp .env.example .env || true
 # 3. Start all services (backend, frontend, Ollama)
 docker compose up --build
 
-# 4. Pull the LLM model (run once after first startup)
-docker exec -it medical-chat-ollama ollama pull llama3.2:1b
+# 4. Populate the ChromaDB store (required for evidence retrieval)
+docker compose exec backend python -m ingestion.run_ingestion
 
-# 5. Open in browser
+# 5. Pull the LLM model (run once after first startup)
+docker exec -it medical-chat-ollama ollama pull llama3.2:latest
+
+# 6. Open in browser
 #    Frontend → http://localhost:3000
 #    Backend  → http://localhost:8000/docs
 ```
 
-> **Note:** Step 4 downloads ~600MB and only needs to be run once. The model is stored in a Docker volume (`ollama`) and persists across restarts.
+> **Note:** Step 5 downloads ~600MB and only needs to be run once. The model is stored in a Docker volume (`ollama`) and persists across restarts.
 
 ---
+
+## Initializing ChromaDB
+
+The Chroma vector store folder and collection are created automatically when the backend initializes `ChromaDocumentStore` on first access. To actually populate the vector store with searchable PubMed chunks, run the ingestion script.
+
+### Local development
+
+From the repository root:
+
+```bash
+cd backend
+python -m ingestion.run_ingestion
+```
+
+This performs the following on first run:
+- fetches PubMed articles for the default terms
+- chunks article text into `backend/ingestion/chunked_articles.json`
+- creates the local ChromaDB store in `backend/chroma_db`
+- populates the `pubmed_abstracts` collection with embeddings
+
+### Docker
+
+When using `docker compose up`, the backend container mounts a named volume at `/data/chroma_db`. The store is created and persisted inside the `chroma_data` volume on first backend startup or when the ingestion flow is run inside the container.
 
 ## Local Development (without Docker)
 
@@ -90,7 +124,7 @@ Install Ollama and pull the model before starting the backend:
 curl -fsSL https://ollama.com/install.sh | sh
 
 # Pull the model (run once, ~600MB download)
-ollama pull llama3.2:1b
+ollama pull llama3.2:latest
 
 # Ollama starts automatically after install
 # If needed, start it manually:
@@ -199,13 +233,14 @@ Create a `.env` file in the project root or set environment variables directly.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama server URL (set to `http://ollama:11434` inside Docker automatically) |
 | `APP_ENV` | No | `development` | `development` \| `staging` \| `production` |
 | `LOG_LEVEL` | No | `INFO` | Application log verbosity |
-| `CORS_ORIGINS` | No | `["http://localhost:3000"]` | Allowed CORS origins for the backend |
+| `CORS_ORIGINS` | No | `['http://localhost:3000']` | Allowed CORS origins for the backend |
 | `ANTHROPIC_API_KEY` | No | — | Anthropic API key placeholder for future integration |
 | `DATABASE_URL` | No | — | PostgreSQL connection string |
-| `CHROMA_DB_PATH` | No | `./chroma_db` | Path to ChromaDB storage |
+| `CHROMA_DB_PATH` | No | `./chroma_db` | Path to ChromaDB storage (current code uses `backend/chroma_db` by default) |
+| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama server URL (set to `http://ollama:11434` inside Docker automatically) |
+| `OLLAMA_MODEL_NAME` | No | `llama3.2:latest` | Ollama model name used by the backend |
 | `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend URL visible to the browser |
 
 ---
@@ -222,8 +257,8 @@ Create a `.env` file in the project root or set environment variables directly.
 
 ## Notes
 
-- The backend currently exposes a placeholder `/api/v1/chat` endpoint.
-- The `backend/ingestion` and `backend/rag` packages contain helper modules that support ingestion, embedding, retrieval, and Ollama integration, but the chat API is not yet fully wired to the RAG pipeline.
+- The backend exposes `/api/v1/chat`, and it is wired to the RAG pipeline with ChromaDB retrieval and Ollama-assisted synthesis.
+- The `backend/ingestion` and `backend/rag` packages contain helper modules that support ingestion, embedding, retrieval, and Ollama integration. The current implementation uses PubMed-derived chunks stored in ChromaDB.
 
 ---
 
@@ -236,15 +271,6 @@ GitHub Actions runs on every push and pull request to `main`:
 - **Types** — mypy strict mode
 - **Security** — Bandit SAST scan
 - **Coverage** — uploaded to Codecov
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Commit your changes (pre-commit hooks run automatically)
-4. Open a pull request against `main`
 
 ---
 
