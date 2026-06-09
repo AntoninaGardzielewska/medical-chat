@@ -1,19 +1,3 @@
-FROM node:20-alpine AS base
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -24,9 +8,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/.next/standalone ./
-# Create public directory if it doesn't exist, then copy if available
 RUN mkdir -p ./public
-COPY --from=builder /app/public ./public 2>/dev/null || true
+RUN if [ -d /app/public ]; then cp -r /app/public ./; fi
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
