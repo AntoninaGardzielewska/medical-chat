@@ -10,9 +10,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-import chromadb
-import torch
-from sentence_transformers import SentenceTransformer
+from src.config import settings
 
 
 class ChromaDocumentStore:
@@ -20,7 +18,7 @@ class ChromaDocumentStore:
         self,
         persist_directory: Path | str,
         collection_name: str,
-        model_name: str = "neuml/pubmedbert-base-embeddings",
+        model_name: str = settings.embedding_model_name,
     ) -> None:
         self.persist_directory = Path(persist_directory)
         self.collection_name = collection_name
@@ -28,6 +26,15 @@ class ChromaDocumentStore:
         self.device = self._select_device()
 
         print(f"--> Initializing {self.model_name} on device: {self.device.upper()}")
+        try:
+            import chromadb
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ImportError(
+                "Failed to import embedding or vector store dependencies. "
+                "Install chromadb and sentence-transformers to use ChromaDocumentStore."
+            ) from exc
+
         self.model = SentenceTransformer(self.model_name, device=self.device)
 
         self.client = chromadb.PersistentClient(path=str(self.persist_directory))
@@ -36,6 +43,11 @@ class ChromaDocumentStore:
         )
 
     def _select_device(self) -> str:
+        try:
+            import torch
+        except ImportError:
+            return "cpu"
+
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return "mps"
         if torch.cuda.is_available():
