@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     embedding_model_name: str = "neuml/pubmedbert-base-embeddings"
 
     # Retrieval tuning
-    retrieval_max_results: int = 20
-    retrieval_max_distance: float = 0.35
+    retrieval_max_results: int = 10
+    retrieval_max_distance: float = 1000.0
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"

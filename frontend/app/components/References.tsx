@@ -40,7 +40,9 @@ export default function References({ references }: ReferencesProps) {
           alignItems: "center",
         }}
       >
-        <span>📚 Sources ({references.length})</span>
+        <span>
+          📚 Source{references.length === 1 ? "" : "s"} cited ({references.length})
+        </span>
         <span style={{ fontSize: "1.2rem" }}>
           {isExpanded ? "▼" : "▶"}
         </span>
@@ -62,7 +64,7 @@ export default function References({ references }: ReferencesProps) {
           >
             {references.map((ref) => (
               <li
-                key={ref.pmid}
+                key={`${ref.pmid}-${ref.number}`}
                 style={{
                   marginBottom: "16px",
                   fontSize: "0.9rem",
@@ -70,7 +72,7 @@ export default function References({ references }: ReferencesProps) {
                 }}
               >
                 <div style={{ fontWeight: "600", marginBottom: "4px" }}>
-                  {ref.title}
+                  [{ref.number}] {ref.title}
                 </div>
                 <div style={{ color: "#6b7280", fontSize: "0.85rem" }}>
                   {ref.authors.length > 100
