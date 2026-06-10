@@ -25,8 +25,8 @@ def _get_chroma_store():
 
 def retrieve(
     query: str,
-    max_results: int = 20,
-    max_distance: float = 200.0,
+    max_results: int = 10,
+    max_distance: float = 1000.0,
 ) -> list[dict]:
     """Retrieve the most relevant chunks for a query.
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         "what is hypertension?",
         "treatment options for type 2 diabetes",
         "symptoms of heart failure",
-        "i love dogs",
+        "what causes high blood sugar?",
     ]
     for q in queries:
         start = time.time()
