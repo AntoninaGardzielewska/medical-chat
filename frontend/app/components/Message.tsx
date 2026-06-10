@@ -98,9 +98,9 @@ export default function Message({ message }: MessageProps) {
             </div>
 
             {/* References */}
-            {!message.isLoading && (message.include_sources ?? Boolean(message.references?.length)) && message.references && (
+            {!message.isLoading && message.references?.length ? (
               <References references={message.references} />
-            )}
+            ) : null}
           </div>
         )}
       </div>
